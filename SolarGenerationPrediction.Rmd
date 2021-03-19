@@ -1,0 +1,471 @@
+
+
+---
+title: "R Notebook"
+output: html_notebook
+Author: Foram Patel
+---
+
+```{r}
+###################
+#### LIBRARIES ####
+###################
+if(!require(tidyverse))
+  install.packages("tidyverse")
+library(tidyverse)
+
+if(!require(GGally))
+  install.packages("GGally")
+library(GGally)
+
+if(!require(ggplot2))
+  install.packages("ggplot2")
+library(ggplot2)
+
+if(!require(rlang))
+  install.packages("rlang")
+library(rlang)
+
+if(!require(broom))
+  install.packages("broom")
+library(broom)
+
+if(!require(scales))
+  install.packages("scales")
+library(scales)
+
+if(!require(caret))
+  install.packages("caret")
+library(caret)   # KNN3
+
+if(!require(dplyr))
+  install.packages("dplyr")
+library(dplyr)    # data transformation
+
+if(!require(rpart))
+  install.packages("rpart")
+library(rpart)  #decision tree
+
+if(!require(randomForest))
+  install.packages("randomForest")
+library(randomForest)    #RandomForest Analysis
+    #extended random forest - ranger
+
+if(!require(MASS))
+  install.packages("MASS")
+library(MASS) # Quaratic Discimination Analysis
+
+if(!require(mice))
+  install.packages("mice")
+library(mice)
+
+if(!require(lubridate))
+  install.packages("lubridate")
+library(lubridate)
+
+if(!require(modelr))
+  install.packages("modelr")
+library(modelr)
+
+if(!require(gbm))
+  install.packages("gbm")
+library(gbm)
+
+if(!require(xgboost))
+  install.packages("xgboost")
+library(xgboost)
+
+if(!require(ModelMetrics))
+  install.packages("ModelMetrics")
+library(ModelMetrics)
+
+if(!require(stats))
+  install.packages("stats")
+library(stats)
+```
+
+```{r}
+data <- read.csv("solar_data.csv")
+data_2018 <- read.csv("solar_data_2018.csv")
+```
+
+
+```{r}
+## structure of the data
+str(data)
+str(data_2018)
+```
+
+```{r}
+####convert date format from int to date ans save it to new column name as date
+data$date <- ymd(data$date..YYYYMMDD.)
+
+##add columns for day ,month and year
+data <- data %>% mutate(year = year(date) , month = month(date) ,day = day(date))%>% mutate(hr = (hour..HHMM.)/100)
+
+#add dayofYear column
+data <- data %>% mutate(dayOfYear = yday(date))
+
+#Convert to week day
+data <- data %>% mutate(weekDay = weekdays(date))
+data <- data %>% mutate(weekOfYear = lubridate::week(date))
+```
+
+```{r}
+####convert date format from int to date ans save it to new column name as date
+data_2018$date <- ymd(data_2018$date)
+
+##add columns for day ,month and year
+data_2018 <- data_2018 %>% mutate(year = year(date) , month = month(date) ,day = day(date))%>% mutate(hr = (hour)/100)
+
+#add dayofYear column
+data_2018 <- data_2018 %>% mutate(dayOfYear = yday(date))
+
+#Convert to week day
+data_2018 <- data_2018 %>% mutate(weekDay = weekdays(date))
+data_2018 <- data_2018 %>% mutate(weekOfYear = lubridate::week(date))
+```
+
+
+```{r}
+### removed extra columns 
+
+data <- data %>% dplyr::select(solar_generation,date,year,month,day,hr,weekDay,weekOfYear,dayOfYear,variable_1,variable_2,variable_3,variable_4,variable_5)
+
+data_2018 <- data_2018 %>% dplyr::select(solar_generation,date,year,month,day,hr,weekOfYear,weekDay,dayOfYear,variable_1,variable_2,variable_3,variable_4,variable_5)
+
+str(data_2018)
+summary(data_2018)
+
+str(data)
+summary(data)
+d <- data %>% filter(year >= 2017)
+```
+
+
+
+```{r}
+###removed outliers and Na's and remove columns variable_3
+data1 <- data %>% filter(variable_1 > -25 & variable_2 > 0) %>%  dplyr::select(-variable_3)
+
+```
+
+
+```{r}
+data1 %>% group_by(month) %>%summarise(sum_solar_generation = sum(solar_generation)) %>% ggplot(mapping=aes(x=month,y=sum_solar_generation))+geom_line()+ggtitle("Solar Generation By Month")
+ 
+data1 %>% group_by(day)%>% summarise(sum_solar_generation = sum(solar_generation)) %>% ggplot(mapping=aes(x=day,y=sum_solar_generation))+geom_line()+ggtitle("Solar Generation By Day")
+ 
+data1 %>% group_by(year)%>% summarise(sum_solar_generation = sum(solar_generation)) %>% ggplot(mapping=aes(x=year,y=sum_solar_generation))+geom_line()+ggtitle("Solar Generation By Year")
+ 
+data1 %>% group_by(hr)%>% summarise(sum_solar_generation = sum(solar_generation)) %>% ggplot(mapping=aes(x=hr,y=sum_solar_generation))+geom_line()+ggtitle("Solar Generation By Hour")
+ 
+data1 %>% group_by(weekOfYear)%>% summarise(sum_solar_generation = sum(solar_generation)) %>% ggplot(mapping=aes(x=weekOfYear,y=sum_solar_generation))+geom_line()+ggtitle("Solar Generation By Week Of Year")
+ 
+data1 %>% group_by(dayOfYear)%>% summarise(sum_solar_generation = sum(solar_generation)) %>% ggplot(mapping=aes(x=dayOfYear,y=sum_solar_generation))+geom_line()+ggtitle("Solar Generation By Day Of Year")
+
+
+ ggplot(data1,mapping=aes(x=date,y=solar_generation))+geom_line()+ggtitle("Solar Generation By Date")
+ 
+```
+
+
+```{r}
+## plot to check data ###
+
+boxplot(data1$variable_1,main = "variable 1")
+boxplot(data1$variable_2,main = "variable 2")
+boxplot(data1$variable_4,main = "variable 4")
+boxplot(data1$variable_5,main = "variable 5")
+boxplot(data1$solar_generation,main = "solar Generation")
+
+hist(data$solar_generation)
+hist(data1$variable_1)
+hist(data1$variable_2)
+hist(data1$variable_4)
+hist(data1$variable_5)
+
+```
+```{r}
+train <- data1 %>% filter(year < 2017) %>% mutate(hr = as.factor(hr)) %>%      
+                  dplyr::select(solar_generation,year,month,hr,weekDay,dayOfYear,variable_1,variable_2,
+                                variable_4,variable_5)
+
+test <- d %>% mutate(hr = as.factor(hr)) %>% 
+            dplyr::select(solar_generation,year,month,hr,weekDay,dayOfYear,variable_1,variable_2,
+                          variable_4,variable_5)
+
+
+```
+
+```{r}
+##create a functon that automatically scores the model accuracy
+scoreModel = function(model, actuals, inputs) {
+  
+  model.predictions = predict(model, inputs)
+  model.predictions = cbind(actuals, predictions = model.predictions, inputs)
+  
+  model.predictions = model.predictions %>% 
+    mutate(Residuals = predictions - actuals) %>%  # calculate residuals
+    mutate(SE = Residuals ^ 2) %>% # residuals square
+    mutate(R = actuals - mean(actuals)) # actuals - mean(actuals)
+  
+  RMSE = sqrt(mean(model.predictions$SE)) ## Root mean Squared Error
+  Rsq = 1 - ((sum(model.predictions$SE))/(sum((model.predictions$R) ^ 2))) # 1- (resuduals^2 / (actual-mean(actuals)))
+  
+  results.list = list(model.predictions = model.predictions, RMSE = RMSE, Rsq = Rsq)
+
+  return(results.list) # return result with prediction Result, RMSE and Rsquared value
+}
+
+#to check the model accuracy we will consider RSME and Rsquared (Rsq should be between 0 - 1).
+#lower RSME and Higher Rsquared is ultimate goal to choose a better model.
+```
+
+```{r}
+#RandomForest 
+
+model1  <- randomForest(solar_generation ~ hr+month+weekDay+variable_1+variable_2+variable_4+variable_5,data = train,importance = TRUE ,do.trace=100,ntree= 1000) 
+
+summary(model1)
+plot(model1)
+
+model1.score = scoreModel(model   = model1, 
+                                 actuals = test$solar_generation,
+                                 inputs  = test %>% dplyr::select(-solar_generation))
+
+rmse.model1 = model1.score$RMSE
+model1.df   = model1.score$model.predictions
+model1.score$RMSE  #RMSE = 72.05 #Rsq = 0.92
+model1.score$Rsq
+# create a scatter plot using ggplot that plots the actuals as a function of 
+#   predictions, also add a line that would show perfect predictions
+plot.results.1 = model1.df %>% ggplot(aes(x = predictions, y = actuals)) + geom_point()
+plot.results.1 = plot.results.1 + geom_abline()
+plot.results.1
+
+```
+
+```{r}
+###best model till now
+
+#RandomForest with ntree= 1000
+ model2 <- randomForest(x = train %>% dplyr::select(-solar_generation),y=train$solar_generation,ntree = 1000,importance = TRUE,do.trace = 100)
+ ##model4 <- randomForest(x = train %>% dplyr::select(-solar_generation),y=train$solar_generation,ntree = 2300,importance = TRUE,do.trace = 100)
+
+
+ model2.score <- scoreModel(model2,test$solar_generation,test)
+ 
+rmse.model2 = model2.score$RMSE
+model2.df   = model2.score$model.predictions
+
+ model2.score$RMSE #69.7554
+  model2.score$Rsq #0.925
+# create a scatter plot using ggplot that plots the actuals as a function of 
+#   predictions, also add a line that would show perfect predictions
+plot.results.2 = model2.df %>% ggplot(aes(x = predictions, y = actuals)) + geom_point()
+plot.results.2 = plot.results.2 + geom_abline()
+plot.results.2
+```
+
+```{r}
+###best model till now
+train1 <- train %>% mutate(weekDay = as.factor(weekDay),month=as.factor(month))
+test1 <- test %>% mutate(weekDay = as.factor(weekDay),month=as.factor(month))
+
+model3 <- randomForest(x = train1 %>% dplyr::select(-solar_generation),y=train1$solar_generation,ntree = 1000,importance = TRUE,do.trace = 100)
+
+model3.score <- scoreModel(model3,test1$solar_generation,test1)
+
+ #$RMSE= 70.46    #$Rsq= 0.924
+rmse.model3 = model3.score$RMSE
+model3.df   = model3.score$model.predictions
+rmse.model3 
+
+# create a scatter plot using ggplot that plots the actuals as a function of 
+#   predictions, also add a line that would show perfect predictions
+plot.results.3 = model3.df %>% ggplot(aes(x = predictions, y = actuals)) + geom_point()
+plot.results.3 = plot.results.3 + geom_abline()
+plot.results.3
+```
+```{r}
+hist(model1.df$predictions)
+
+hist(model2.df$predictions)
+
+hist(model3.df$predictions)
+
+hist(test$solar_generation)
+```
+
+
+```{r}
+## need to compare the models
+
+compare1 = model1.df %>% 
+  mutate(model = 'Model1') %>% 
+  dplyr::select(actuals, predictions, model)
+
+
+compare2 = model2.df %>% 
+  mutate(model = 'Model2') %>% 
+  dplyr::select(actuals, predictions, model)
+
+compare3 = model3.df %>% 
+  mutate(model = 'Model3') %>% 
+  dplyr::select(actuals, predictions, model)
+
+# combined models
+comparison.df = rbind(compare1, compare2,compare3)
+
+# scatter plot of predictions vs actuals, color points by model, 
+#   add accuracy line
+plot.comparison = comparison.df %>% ggplot(aes(x = predictions, y = actuals, color = model)) + geom_point()
+plot.comparison = plot.comparison + geom_abline()
+plot.comparison 
+
+# use geom_histogram to plot the residuals of the best model
+plot.hist.model = model3.df %>% ggplot(aes(x = Residuals)) + geom_histogram()
+plot.hist.model
+
+```
+
+
+```{r}
+#XgBoost model 
+
+#prepare for xgboost
+#As matrix
+label.train <- train$solar_generation
+label.test <- test$solar_generation
+library(Matrix)
+
+require(xgboost)
+require(Matrix)
+require(data.table)
+
+#sparse matrix of train set and test set.
+
+trainMatrix1 <- sparse.model.matrix( solar_generation ~. , data = train)
+
+testMatrix1 <- sparse.model.matrix( solar_generation ~. , data =test)
+
+model4 <- xgboost(data = trainMatrix1, label = label.train, max_depth = 4,
+               eta = 0.1, nthread = 2, nrounds = 110, objective = "reg:linear"
+               )
+
+model4.pred <- predict(model4,testMatrix1)
+
+model4.predictions = cbind(label.test, predictions = model4.pred, test)
+
+model4.predictions = model4.predictions %>% 
+    mutate(Residuals = predictions - label.test) %>%  # calculate residuals
+    mutate(SE = Residuals ^ 2) %>% # residuals square
+    mutate(R = label.test - mean(label.test)) # label.test - mean(label.test)
+  
+RMSE = sqrt(mean(model4.predictions$SE)) ## Root mean Squared Error #94.35
+RMSE
+Rsq = 1 - ((sum(model4.predictions$SE))/(sum((model4.predictions$R) ^ 2))) # 1- (resuduals^2 / (actual-mean(actuals)))
+Rsq
+
+plot.results.4 = model4.predictions %>% ggplot(aes(x = predictions, y = label.test)) + geom_point()
+plot.results.4 = plot.results.4 + geom_abline()
+plot.results.4
+
+model4.predictions$new <- ifelse(model4.predictions$predictions < 0 , 0 , model4.predictions$predictions)
+    
+plot.results.4 = model4.predictions %>% ggplot(aes(x = new, y = label.test)) + geom_point()
+plot.results.4 = plot.results.4 + geom_abline()
+plot.results.4           
+
+
+compare2 = model2.df %>% 
+  mutate(model = 'Model2') %>% 
+  dplyr::select(actuals, predictions, model)
+
+compare4 = model4.predictions %>% 
+  mutate(model = 'Model4') %>% 
+  dplyr::select(actuals = label.test, predictions = prediction, model)
+
+comparison.df1 = rbind( compare2,compare4)
+# scatter plot of predictions vs actuals with comparison df, color points by model, 
+#   add accuracy line, name plot 'plot.comparison'
+plot.comparison = comparison.df1 %>% ggplot(aes(x = predictions, y = actuals, color = model)) + geom_point()
+plot.comparison = plot.comparison + geom_abline()
+plot.comparison 
+
+model4.pred <- predict(xgbFit,testMatrix1)
+
+model4.predictions = cbind(label.test, predictions = model4.pred, test)
+
+model4.predictions = model4.predictions %>% 
+    mutate(Residuals = predictions - label.test) %>%  # calculate residuals
+    mutate(SE = Residuals ^ 2) %>% # residuals square
+    mutate(R = label.test - mean(label.test)) # label.test - mean(label.test)
+  
+RMSE = sqrt(mean(model4.predictions$SE)) ## Root mean Squared Error #94.35
+RMSE
+Rsq = 1 - ((sum(model4.predictions$SE))/(sum((model4.predictions$R) ^ 2))) # 1- (resuduals^2 / (actual-mean(actuals)))
+Rsq
+
+
+
+plot.results.4 = model4.predictions %>% ggplot(aes(x = predictions, y = label.test)) + geom_point()
+plot.results.4 = plot.results.4 + geom_abline()
+plot.results.4
+
+model4.predictions$new <- ifelse(model4.predictions$predictions < 0 , 0 , model4.predictions$predictions)
+    
+plot.results.4 = model4.predictions %>% ggplot(aes(x = new, y = label.test)) + geom_point()
+plot.results.4 = plot.results.4 + geom_abline()
+plot.results.4           
+
+
+compare2 = model2.df %>% 
+  mutate(model = 'Model2') %>% 
+  dplyr::select(actuals, predictions, model)
+
+compare4 = model4.predictions %>% 
+  mutate(model = 'Model4') %>% 
+  dplyr::select(actuals = label.test, predictions = prediction, model)
+
+comparison.df1 = rbind( compare2,compare4)
+# scatter plot of predictions vs actuals 
+#   add accuracy line, name plot 'plot.comparison'
+plot.comparison = comparison.df1 %>% ggplot(aes(x = predictions, y = actuals, color = model)) + geom_point()
+plot.comparison = plot.comparison + geom_abline()
+plot.comparison 
+
+
+#find importance for features used in model
+imp <- xgb.importance(colnames(trainMatrix1),model = model4)
+print(imp)
+xgb.plot.importance(imp)
+```
+
+```{r}
+#final test for 2018 data.
+
+final_train <- data1 %>% mutate(hr = as.factor(hr)) %>%      
+                  dplyr::select(solar_generation,month,hr,weekDay,variable_1,variable_2,
+                                variable_4,variable_5)
+
+final_test <- data_2018 %>% mutate(hr = as.factor(hr)) %>% 
+            dplyr::select(solar_generation,month,hr,weekDay,variable_1,variable_2,
+                          variable_4,variable_5)
+
+
+```
+
+```{r}
+final.model <- randomForest(x = final_train %>% dplyr::select(-solar_generation),y=final_train$solar_generation,ntree = 1000,do.trace = 100)
+
+final.pred <- predict(final.model, final_test %>% dplyr::select(-solar_generation))
+
+fianl_result <- cbind(final.pred,final_test)
+
+write.csv(fianl_result,"final_result3.csv")
+
+```
+
+
